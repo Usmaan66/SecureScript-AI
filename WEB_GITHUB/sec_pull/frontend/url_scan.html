@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Website Vulnerability Scanner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Fira+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Outfit', sans-serif;
+      color: #fff;
+      overflow-x: hidden;
+      background: #090e1a;
+      background: radial-gradient(circle at 50% 0%, #1a2b4c, #090e1a 80%);
+    }
+    
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+    
+    .container {
+      position: relative;
+      background: rgba(16, 24, 39, 0.75);
+      backdrop-filter: blur(12px);
+      border-radius: 24px;
+      padding: 2.8rem 2.5rem 2.5rem;
+      margin: 4rem auto;
+      width: 94vw;
+      max-width: 500px;
+      border: 1px solid rgba(99, 179, 237, 0.15);
+      box-shadow: 
+        0 20px 60px rgba(6, 10, 20, 0.4),
+        0 0 80px rgba(59, 130, 246, 0.15),
+        inset 0 1px 1px rgba(255, 255, 255, 0.08);
+      transform-style: preserve-3d;
+      transform: perspective(1000px) translateZ(0px);
+      transition: transform 0.5s, box-shadow 0.5s;
+      animation: floatIn 1.4s cubic-bezier(0.23, 1, 0.32, 1) both;
+    }
+    
+    @keyframes floatIn {
+      0% { opacity: 0; transform: perspective(1000px) translateZ(-100px) translateY(40px); }
+      100% { opacity: 1; transform: perspective(1000px) translateZ(0) translateY(0); }
+    }
+    
+    .container::before {
+      content: '';
+      position: absolute;
+      top: -5px;
+      left: -5px;
+      right: -5px;
+      bottom: -5px;
+      background: linear-gradient(45deg, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.3), rgba(59, 130, 246, 0));
+      border-radius: 28px;
+      z-index: -1;
+      animation: borderGlow 6s linear infinite;
+      filter: blur(10px);
+    }
+    
+    @keyframes borderGlow {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.7; }
+    }
+    
+    .title-container {
+      position: relative;
+      margin-bottom: 1.5rem;
+      transform-style: preserve-3d;
+    }
+    
+    .title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-align: center;
+      margin-bottom: 0.2rem;
+      color: transparent;
+      background: linear-gradient(120deg, #60a5fa, #3b82f6, #1e40af);
+      -webkit-background-clip: text;
+      background-clip: text;
+      position: relative;
+      text-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+      transform: translateZ(20px);
+    }
+    
+    .subtitle {
+      font-size: 1.1rem;
+      text-align: center;
+      color: #93c5fd;
+      margin-bottom: 2.5rem;
+      position: relative;
+      transform: translateZ(10px);
+    }
+    
+    .cyber-badge {
+      position: absolute;
+      top: -40px;
+      right: -25px;
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: white;
+      padding: 0.4rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transform: rotate(15deg) translateZ(30px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: rotate(15deg) translateZ(30px) translateY(0px); }
+      50% { transform: rotate(15deg) translateZ(30px) translateY(-10px); }
+    }
+    
+    #scanForm {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1.5rem;
+      position: relative;
+      transform-style: preserve-3d;
+    }
+    
+    .input-container {
+      position: relative;
+      transform-style: preserve-3d;
+      transform: translateZ(5px);
+    }
+    
+    #url {
+      width: 100%;
+      padding: 1.1em 1.2em;
+      border-radius: 12px;
+      border: 1px solid rgba(99, 179, 237, 0.2);
+      font-size: 1.1em;
+      background: rgba(30, 41, 59, 0.8);
+      color: #fff;
+      box-sizing: border-box;
+      box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.1),
+        inset 0 1px 2px rgba(255, 255, 255, 0.05);
+      font-family: 'Fira Mono', monospace;
+      transition: all 0.3s;
+    }
+    
+    #url:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 
+        0 0 0 2px rgba(59, 130, 246, 0.2),
+        0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    #url::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+    
+    .input-container::before {
+      content: 'https://';
+      position: absolute;
+      left: 15px;
+      top: 17px;
+      color: rgba(99, 179, 237, 0.6);
+      font-family: 'Fira Mono', monospace;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .button-container {
+      position: relative;
+      transform-style: preserve-3d;
+      transform: translateZ(15px);
+    }
+    
+    button[type="submit"] {
+      width: 100%;
+      background: linear-gradient(90deg, #2563eb, #3b82f6);
+      color: white;
+      font-weight: 600;
+      font-size: 1.2em;
+      border: none;
+      border-radius: 12px;
+      padding: 1em 0;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 
+        0 10px 25px -5px rgba(37, 99, 235, 0.5),
+        0 0 15px rgba(59, 130, 246, 0.3);
+      transition: all 0.3s;
+    }
+    
+    button[type="submit"]::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        to right,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+      );
+      transition: 0.5s;
+    }
+    
+    button[type="submit"]:hover {
+      transform: translateY(-3px);
+      box-shadow: 
+        0 15px 30px -5px rgba(37, 99, 235, 0.5),
+        0 0 20px rgba(59, 130, 246, 0.4);
+    }
+    
+    button[type="submit"]:hover::before {
+      left: 100%;
+    }
+    
+    button[type="submit"]:active {
+      transform: translateY(0);
+    }
+    
+    #result {
+      margin-top: 2.5rem;
+      font-size: 1.05rem;
+      word-break: break-word;
+      background: rgba(30, 58, 138, 0.2);
+      border-radius: 16px;
+      padding: 1.5rem;
+      min-height: 3rem;
+      border: 1px solid rgba(99, 179, 237, 0.15);
+      font-family: 'Fira Mono', monospace;
+      color: #e0f2fe;
+      position: relative;
+      transform-style: preserve-3d;
+      transform: translateZ(10px);
+      box-shadow: 
+        0 10px 25px rgba(6, 10, 20, 0.2),
+        inset 0 1px 1px rgba(255, 255, 255, 0.05);
+      animation: fadeIn 0.8s cubic-bezier(0.23, 1, 0.32, 1) both;
+    }
+    
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateZ(10px) translateY(20px); }
+      100% { opacity: 1; transform: translateZ(10px) translateY(0); }
+    }
+    
+    .error {
+      color: #f87171;
+      font-weight: 500;
+      margin-top: 1rem;
+      background: rgba(248, 113, 113, 0.1);
+      border-radius: 12px;
+      padding: 0.8rem 1rem;
+      border-left: 4px solid #f87171;
+    }
+    
+    .report ul {
+      margin: 0.8rem 0 1rem 1.2rem;
+      padding: 0;
+      color: #fcd34d;
+    }
+    
+    .report li {
+      margin-bottom: 0.5rem;
+      position: relative;
+    }
+    
+    .report li::before {
+      content: '→';
+      position: absolute;
+      left: -1.2rem;
+      color: #60a5fa;
+    }
+    
+    .report pre {
+      background: rgba(15, 23, 42, 0.7);
+      color: #38bdf8;
+      padding: 1rem 1.2rem;
+      border-radius: 10px;
+      margin-top: 1rem;
+      overflow-x: auto;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    
+    .report strong {
+      color: #93c5fd;
+      font-weight: 600;
+    }
+    
+    #pdf-download {
+      margin-top: 2.5rem;
+      text-align: center;
+      position: relative;
+      transform-style: preserve-3d;
+      transform: translateZ(15px);
+    }
+    
+    #pdf-download button {
+      background: linear-gradient(90deg, #1e40af, #3b82f6);
+      color: white;
+      font-weight: 600;
+      font-size: 1.05rem;
+      border: none;
+      border-radius: 12px;
+      padding: 0.8rem 2.2rem;
+      cursor: pointer;
+      box-shadow: 
+        0 10px 25px -5px rgba(30, 64, 175, 0.5),
+        0 0 15px rgba(59, 130, 246, 0.3);
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    #pdf-download button::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        to right,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+      );
+      transition: 0.5s;
+    }
+    
+    #pdf-download button:hover {
+      transform: translateY(-3px);
+      box-shadow: 
+        0 15px 30px -5px rgba(30, 64, 175, 0.5),
+        0 0 20px rgba(59, 130, 246, 0.4);
+    }
+    
+    #pdf-download button:hover::before {
+      left: 100%;
+    }
+    
+    .pulse {
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      right: -10px;
+      bottom: -10px;
+      border-radius: 30px;
+      background: radial-gradient(circle at center, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.4));
+      opacity: 0;
+      z-index: -1;
+      animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      50% {
+        opacity: 0.3;
+        transform: scale(1);
+      }
+    }
+    
+    .scan-status {
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, #1e3a8a, #3b82f6);
+      color: white;
+      padding: 0.5rem 1.5rem;
+      border-radius: 30px;
+      font-weight: 600;
+      box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4);
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    
+    .scan-status.active {
+      opacity: 1;
+    }
+    
+    .loading {
+      display: inline-block;
+      position: relative;
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    
+    .loading div {
+      box-sizing: border-box;
+      display: block;
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      animation: loading 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      border-color: #fff transparent transparent transparent;
+    }
+    
+    @keyframes loading {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        padding: 2rem 1.5rem;
+        margin: 2rem auto;
+        max-width: 92vw;
+      }
+      
+      .title {
+        font-size: 1.8rem;
+      }
+      
+      .cyber-badge {
+        top: -30px;
+        right: -10px;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.8rem;
+      }
+      
+      #result {
+        padding: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  
+  <div class="container">
+    <div class="pulse"></div>
+    <div class="title-container">
+      <div class="cyber-badge">AI-Powered</div>
+      <div class="title">Vulnerability Scanner</div>
+      <div class="subtitle">Analyze your website for security risks in 3D</div>
+    </div>
+    
+    <form id="scanForm">
+      <div class="input-container">
+        <input type="text" id="url" name="url" placeholder="example.com" required autocomplete="off" />
+      </div>
+      
+      <div class="button-container">
+        <button type="submit">🔍 Scan Now</button>
+      </div>
+    </form>
+    
+    <div id="result"></div>
+    <div id="pdf-download"></div>
+    <div id="download-section" style="text-align:center; margin-top:20px;">
+      <button id="download-pdf-btn" class="download-btn">Download Vulnerability PDF Report</button>
+    </div>
+  </div>
+  
+  <script>
+    // Three.js Background
+    const canvas = document.createElement('canvas');
+    document.getElementById('canvas-container').appendChild(canvas);
+    
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true
+    });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    camera.position.z = 30;
+    
+    // Create particles
+    const particlesGeometry = new THREE.BufferGeometry();
+    const particlesCount = 1000;
+    
+    const posArray = new Float32Array(particlesCount * 3);
+    const sizeArray = new Float32Array(particlesCount);
+    
+    for (let i = 0; i < particlesCount * 3; i += 3) {
+      // Position
+      posArray[i] = (Math.random() - 0.5) * 100;
+      posArray[i + 1] = (Math.random() - 0.5) * 100;
+      posArray[i + 2] = (Math.random() - 0.5) * 100;
+      
+      // Size
+      sizeArray[i / 3] = Math.random() * 2 + 0.5;
+    }
+    
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizeArray, 1));
+    
+    const particlesMaterial = new THREE.PointsMaterial({
+      size: 0.1,
+      color: 0x3b82f6,
+      transparent: true,
+      opacity: 0.8,
+      sizeAttenuation: true
+    });
+    
+    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particlesMesh);
+    
+    // Lines connecting particles
+    const linesGeometry = new THREE.BufferGeometry();
+    const linesMaterial = new THREE.LineBasicMaterial({ 
+      color: 0x3b82f6,
+      transparent: true,
+      opacity: 0.2
+    });
+    
+    const lines = new THREE.LineSegments(linesGeometry, linesMaterial);
+    scene.add(lines);
+    
+    // Animation
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      particlesMesh.rotation.x += 0.0003;
+      particlesMesh.rotation.y += 0.0005;
+      
+      renderer.render(scene, camera);
+    }
+    
+    animate();
+    
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    
+    // 3D parallax effect for container
+    const container = document.querySelector('.container');
+    document.addEventListener('mousemove', (e) => {
+      const xAxis = (window.innerWidth / 2 - e.pageX) / 25;
+      const yAxis = (window.innerHeight / 2 - e.pageY) / 25;
+      container.style.transform = `perspective(1000px) rotateY(${xAxis}deg) rotateX(${-yAxis}deg) translateZ(0px)`;
+    });
+    
+    // Form handling
+    const form = document.getElementById('scanForm');
+    const resultDiv = document.getElementById('result');
+    const pdfDiv = document.getElementById('pdf-download');
+    const downloadSection = document.getElementById('download-section');
+    const downloadBtn = document.getElementById('download-pdf-btn');
+    let lastUrl = null;
+    
+    function showDownloadButton(url) {
+      lastUrl = url;
+      downloadSection.style.display = '';
+    }
+    
+    downloadBtn.onclick = async function() {
+      if (!lastUrl) return;
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = 'Downloading...';
+      const pdfRes = await fetch('http://localhost:5000/scan_and_report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: lastUrl })
+      });
+      if (pdfRes.ok) {
+        const blob = await pdfRes.blob();
+        const urlBlob = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = urlBlob;
+        a.download = 'gemini_vulnerability_report.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(urlBlob);
+      } else {
+        alert('Failed to download PDF report.');
+      }
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = 'Download Vulnerability PDF Report';
+    }
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Add loading status
+      const statusEl = document.createElement('div');
+      statusEl.className = 'scan-status active';
+      statusEl.innerHTML = '<div class="loading"><div></div></div> Scanning...';
+      resultDiv.appendChild(statusEl);
+      
+      resultDiv.innerHTML = '<em>Initiating security scan...</em>';
+      pdfDiv.innerHTML = '';
+      downloadSection.style.display = 'none';
+      
+      const url = document.getElementById('url').value.trim();
+      
+      try {
+        // Scanner animation effect
+        container.classList.add('scanning');
+        
+        // Simulate network request
+        setTimeout(async () => {
+          try {
+            const res = await fetch('http://localhost:5000/scan_url', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url })
+            });
+            
+            const data = await res.json();
+            
+            if (data.error) {
+              resultDiv.innerHTML = `<div class='error'>${data.error}</div>`;
+            } else {
+              let vulnList = '';
+              if (data.vulnerabilities && data.vulnerabilities.length > 0) {
+                vulnList = '<ul>' + data.vulnerabilities.map(v => `<li>${v}</li>`).join('') + '</ul>';
+              } else {
+                vulnList = '<em>No vulnerabilities found.</em>';
+              }
+              
+              resultDiv.innerHTML = `
+                <div class='report'>
+                  <strong>Scan Report for:</strong> ${data.url}<br><br>
+                  <strong>Vulnerabilities:</strong>
+                  ${vulnList}<br>
+                  <strong>Status:</strong> ${data.report || 'Completed'}<br><br>
+                  <strong>AI Security Analysis:</strong>
+                  <pre>${data.gemini_report || ''}</pre>
+                </div>`;
+                
+              if (data.pdf_url) {
+                pdfDiv.innerHTML = `<a href="http://localhost:5000${data.pdf_url}" target="_blank"><button type='button'>View Full Report</button></a>`;
+              }
+            }
+          } catch (err) {
+            resultDiv.innerHTML = `<div class='error'>Connection Error: ${err.message}</div>`;
+          } finally {
+            container.classList.remove('scanning');
+          }
+        }, 1500);
+      } catch (err) {
+        resultDiv.innerHTML = `<div class='error'>Error: ${err.message}</div>`;
+        container.classList.remove('scanning');
+      }
+      
+      showDownloadButton(url);
+    });
+    
+    // URL input focus effects
+    const urlInput = document.getElementById('url');
+    urlInput.addEventListener('focus', () => {
+      document.querySelector('.input-container').classList.add('focused');
+    });
+    
+    urlInput.addEventListener('blur', () => {
+      document.querySelector('.input-container').classList.remove('focused');
+    });
+  </script>
+</body>
+</html>

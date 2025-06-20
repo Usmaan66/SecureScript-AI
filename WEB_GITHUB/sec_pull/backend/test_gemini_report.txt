@@ -1,0 +1,1 @@
+{'error': 'Gemini API error: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyBCyziLzDy4RivfkJ3wyyrlIIjbOj-Mtdc'}
